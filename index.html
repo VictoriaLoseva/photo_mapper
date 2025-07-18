@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="./css/ol.css">
+    <link rel="stylesheet" href="./css/button.css">
+    <style>
+        #map { 
+            width: 80%; 
+            height: 600px; 
+            margin: auto}
+        #photo_popup_inner {
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            margin: 10px 0; 
+            display:none; 
+            position:absolute;
+            border-radius: 5px;
+            background: #fefefe;
+        }
+        #container {
+            display: flex
+        }
+        #timeline {
+            display: inline-grid;
+            grid-template-columns: 0.5fr 0.5fr;
+
+        }
+
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="timeline">
+            <button class="button-80" role="button" grid-column="1">Day 1</button> 
+            <button class="button-80" role="button" grid-column="1">Day 2</button> 
+            <button class="button-80" role="button" grid-column="1">Day 3</button> 
+            <button class="button-80" role="button" grid-column="1">Day 4</button> 
+
+            <button class="button-80" role="button" grid-column="1">Day 5</button> 
+            <button class="button-80" role="button" grid-column="1">Day 6</button> 
+            <button class="button-80" role="button" grid-column="2">Day 7</button> 
+            <button class="button-80" role="button" grid-column="2">Day 8</button> 
+
+            <button class="button-80" role="button" grid-column="2">Day 9</button> 
+            <button class="button-80" role="button" grid-column="2">Day 10</button> 
+            <button class="button-80" role="button" grid-column="2">Day 11</button>  
+            <button class="button-80" role="button" grid-column="2">Day 12</button>
+
+            <!-- <input type="range"> -->
+
+        </div>
+        <div id="map"></div>
+        <div id="picture"></div>
+    </div>
+    <script src="./js/ol.js"></script>
+    <script src="./js/json_container.js"></script>
+    <script src="./js/app.js"> </script>
+</body>
+</html>
