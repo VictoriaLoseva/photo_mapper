@@ -3,6 +3,7 @@
 <head>
     <link rel="stylesheet" href="./css/ol.css">
     <link rel="stylesheet" href="./css/button.css">
+    <link rel="stylesheet" href="./css/progress.css">
     <style>
         #map { 
             width: 70%; 
@@ -32,13 +33,18 @@
 </head>
 <body>
     <div id="container">
-        <div id="directoryInfo"></div>
+        <div id="directorySelectionContainer">
+            <div><input type="file" id="directoryInput" webkitdirectory></div>
+            <div id="directoryInfo"></div>
+            <div id="progressbar"></div>
+        </div>
+        
         <div id="timeline"></div>
         <div id="map"></div>
         <div id="picture"></div>
     </div>
     <script src="./js/ol.js"></script>
-    <script src="./js/json_container.js"></script>
+    <script src="./js/exif.js"></script>
     <script src="./js/app.js"> </script>
 </body>
 </html>

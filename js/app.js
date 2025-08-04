@@ -1,141 +1,260 @@
 
+var map; 
+var markerLayer; 
+var photo_data; 
+
+directoryInput = document.getElementById("directoryInput");
 
 
-//Create vectorLayer for showing the photo positions
-function selectPhotosByTimeRange(timeRangeStart, timeRangeEnd) {
-    markerVectorSource = new ol.source.Vector();
 
-    selected = photo_data.filter(photo => photo.datetime > timeRangeStart && photo.datetime < timeRangeEnd);
+directoryInput.addEventListener('change', async function(event) {
+    photo_data = await processFiles(event.target.files);
+    // console.log("photo_data: ", console.log(JSON.stringify(photo_data)));
+    // console.log(typeof(photo_data));
+    // console.log("photo_data[0]", photo_data.at(0));
+    photo_data.sort((photoA, photoB) => photoA.datetime - photoB.datetime);
+    // console.log("photo_data sorted: ", photo_data);
+    markerLayer = createMarkerLayer(photo_data[0].datetime, photo_data[photo_data.length - 1].datetime);
+    console.log("made", markerLayer.getSource().getFeatures().length, "markers");
+    markerLayer.getSource().getFeatures().forEach(f => console.log(f.getGeometry()));
+    console.log("markerlayer: ", markerLayer)
+    map = createMap();
+    makeTimeline();
+    // markerLayer.getSource().getFeatures().forEach(f => {console.log(f)});
+    console.log(markerLayer);
+})
 
-    for (const index in selected) {
-        photo = selected[index];
-        photoTime = new Date(photo.datetime);
-        const marker = new ol.Feature({
-            geometry: new ol.geom.Point(ol.proj.fromLonLat([photo.coords[0], photo.coords[1]])),
-            time: photo.datetime,
-            path: photo.path,
-            width: photo.width,
-            length: photo.length
+
+function createMap() {
+    //get tiles for map layer
+    mapLayer = new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                    url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                    attributions: '© OpenTopoMap (CC-BY-SA)'
+                })
+            });
+    markerLayer = createMarkerLayer(photo_data[0].datetime, photo_data[photo_data.length - 1].datetime);
+
+    //Create the popup element
+    const photo_popup_inner = document.createElement('div');
+    photo_popup_inner.id = 'photo_popup_inner';
+    const popup_overlay = new ol.Overlay({
+        element: photo_popup_inner,
+        positioning: 'bottom-center',
+        autoPan: true,
+        autoPanAnimation: {
+            duration: 250
+        },
+        style: new ol.style.Style({})
+    });
+
+    //Combine into a map
+    map = new ol.Map({
+        target: 'map',
+        layers: [
+            mapLayer,
+            markerLayer
+        ],
+        view: new ol.View({center: [0,0], zoom: 1}),
+        overlays: [popup_overlay]
+    });
+
+    console.log(markerLayer.getSource().getExtent())
+    map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 10, duration:1000});
+
+    //Add on-click handler 
+    map.on('click', function(event) {
+        photo_popup_inner = document.getElementById("photo_popup_inner")
+        const feature = map.forEachFeatureAtPixel(event.pixel, function(feature) {
+            return feature;
         });
-        markerVectorSource.addFeature(marker);
-    }
-    return markerVectorSource;
+        if (feature) {
+            aspect_ratio = feature.get('width') / feature.get('length');
+            photo_popup_inner.innerHTML = `
+                <img src="${feature.get('path')}" width=${200 * aspect_ratio} margin="auto">
+                `;
+            photo_popup_inner.style.display = 'block';
+            popup_overlay.setPosition(event.coordinate);
+        }
+        else {
+            photo_popup_inner.style.display = 'None'
+        }
+            
+    });
+
+    return map;
 }
 
 function createMarkerLayer (timeRangeStart, timeRangeEnd) {
+    selected = photo_data.filter(photo => photo.datetime >= timeRangeStart && photo.datetime <= timeRangeEnd);
+    console.log("selected ", selected.length, " photos in time range");
     return new ol.layer.Vector({
-    source: selectPhotosByTimeRange(timeRangeStart, timeRangeEnd),
-    style: new ol.style.Style({
-        image: new ol.style.Circle({
-            radius: 8,
-            fill: new ol.style.Fill({
-                color: '#ff4444'
-            }),
-            stroke: new ol.style.Stroke({
-                color: '#ffffff',
-                width: 2
+        source: createVectorSource(selected),
+        style:  new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({
+                    color: '#ff4444'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: '#ffffff',
+                    width: 2
+                })
             })
         })
-    })
-});
+    });
 }
 
-const firstDay = photo_data[0].datetime;
-const lastDay = photo_data[photo_data.length-1].datetime;
+function convertDMSToDecimal(dms, ref) {
+    if (!dms || dms.length !== 3) {return null};
 
-var markerLayer = createMarkerLayer(firstDay, lastDay);
+    const degrees = dms[0].numerator / dms[0].denominator;
+    const minutes = dms[1].numerator / dms[1].denominator;
+    const seconds = dms[2].numerator / dms[2].denominator;
+
+    let decimal = degrees + (minutes / 60) + (seconds / 3600);
+
+    if (ref === 'S' || ref === 'W') {
+        decimal *= -1;
+    }
+    return decimal;
+}
+
+function getDataPromise(file) {
+  return new Promise((resolve, reject) => {
+    EXIF.getData(file, (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
+}
 
 
-//Create the popup element
-const photo_popup_inner = document.createElement('div');
-photo_popup_inner.id = 'photo_popup_inner';
-const popup_overlay = new ol.Overlay({
-    element: photo_popup_inner,
-    positioning: 'bottom-center',
-    autoPan: true,
-    autoPanAnimation: {
-        duration: 250
-    },
-    style: new ol.style.Style({})
-});
+async function processFiles(files) {
+    if (files.length === 0) return;
 
-//create map 
-mapLayer = new ol.layer.Tile({
-                source: new ol.source.XYZ({
-                url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png',
-                attributions: '© OpenTopoMap (CC-BY-SA)'
-            })
+    
+    // Filter for image files
+    const imageFiles = Array.from(files).filter(file => 
+        file.type.endsWith('jpeg')
+    );
+    
+    if (imageFiles.length === 0) {
+        directoryInfo.textContent = 'No image files found in selected directory.';
+        return;
+    }
+    
+    // Update directory info
+    directoryInfo.textContent = `Found ${imageFiles.length} images in selected directory.`;
+
+
+    photosFromFile = new Array();
+    
+    // Process each image file
+    for (const imFile of imageFiles) {
+        // console.log("processing ", JSON.stringify(imFile.webkitRelativePath))
+
+        await getDataPromise(imFile) 
+
+        console.log("yeet")
+
+        const latitude = EXIF.getTag(imFile, "GPSLatitude");
+        const longitude = EXIF.getTag(imFile, "GPSLongitude");
+        const latitudeRef = EXIF.getTag(imFile, "GPSLatitudeRef"); // 'N' or 'S'
+        const longitudeRef = EXIF.getTag(imFile, "GPSLongitudeRef"); // 'E' or 'W'
+
+        dateEXIF = EXIF.getTag(imFile, "DateTimeOriginal")
+
+        if (latitude && longitude) {
+            const decimalLatitude = convertDMSToDecimal(latitude, latitudeRef);
+            const decimalLongitude = convertDMSToDecimal(longitude, longitudeRef);
+            // console.log(decimalLatitude, decimalLongitude);
+            image = {coords: [decimalLatitude, decimalLongitude], 
+                        path: imFile.webkitRelativePath,
+                        datetime: new Date(dateEXIF.split(' ')[0].replace(/:/g, '-') + 'T' + dateEXIF.split(' ')[1]) , 
+                        width: EXIF.getTag(imFile, "ImageWidth"), 
+                        length: EXIF.getTag(imFile, "ImageHeight")};
+            photosFromFile.push(image);
+            // console.log("pushed an image: ", JSON.stringify(image));
+        }
+    }
+    
+    if (photosFromFile.length == 0) {
+        console.log("No photos with GPS data found");
+    }
+    else {
+        directoryInfo.textContent += `Found ${photosFromFile.length} GPS-tagged images in selected directory.`;
+    }
+
+    console.log("All files processed:", photosFromFile);
+    
+    return photosFromFile;
+}
+
+
+//Create vectorLayer for showing the photo positions
+function createVectorSource(selected) {
+    let markerVectorSource = new ol.source.Vector();
+    for (const index in selected) {
+        photo = selected[index];
+        photoTime = photo.datetime;
+        console.log(photo.coords);
+        console.log(typeof(photo.coords[0]));
+        const marker = new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.fromLonLat([photo.coords[1], photo.coords[0]])),
+            time: photo.datetime,
+            path: photo.path,
+            width: photo.width,
+            length: photo.length,
+            coords: photo.coords
         });
-
-//Combine everything into a map element centered on tahoe
-var map = new ol.Map({
-    target: 'map',
-    layers: [
-        mapLayer,
-        markerLayer
-    ],
-     view: new ol.View(),
-    overlays: [popup_overlay]
-});
-
-map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 10, duration:1000});
-
-//Add on-click handler 
-map.on('click', function(event) {
-    const feature = map.forEachFeatureAtPixel(event.pixel, function(feature) {
-        return feature;
-    });
-    if (feature) {
-        aspect_ratio = feature.get('width') / feature.get('length');
-        photo_popup_inner.innerHTML = `
-            <img src="${feature.get('path')}" width=${200 * aspect_ratio} margin="auto">
-            `;
-        photo_popup_inner.style.display = 'block';
-        popup_overlay.setPosition(event.coordinate);
-    }
-    else {
-        photo_popup_inner.style.display = 'None'
-    }
+        marker.getGeometry().computeExtent();
+        markerVectorSource.addFeature(marker);
         
-});
-
-//Make the timeline buttons
-const uniqueDates = [...new Set(photo_data.map(photo => new Date(photo.datetime).setHours(0,0,0)))];
-uniqueDates.slice(0, uniqueDates.length)
-
-function handleDaySelection(clickedButton, selectedDate) { 
-    if (selectedDate == "Clear") {
-        selectedDate = firstDay;
-        selectedDateEnd = lastDay;
     }
-    else {
-        selectedDateEnd = new Date(selectedDate);
-        selectedDateEnd.setDate(selectedDate.getDate() + 1);
-    }
-    console.log(selectedDate, selectedDateEnd)
-    const selectedPhotos = createMarkerLayer(selectedDate, selectedDateEnd); 
-    map.removeLayer(markerLayer)
-    markerLayer = selectedPhotos;
-    map.addLayer(markerLayer)
-    map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 12.5, duration:500, padding: [10,10,10,10]})
-
+    console.log("markerVectorSource has ", markerVectorSource.getFeatures().length, ": ");
+    console.log(markerVectorSource);
+    
+    return markerVectorSource;
 }
 
-uniqueDates.forEach((date, index) => {
-    const button = document.createElement('button');
-    date = new Date(date);
-    button.className = 'button-80';
-    button.textContent = `Day ${index + 1}`;    
-    button.addEventListener('click', function() {
-        handleDaySelection(button, date);
-    });
-    document.getElementById("timeline").appendChild(button);
-})
 
-const clear_button = document.createElement('button');
-clear_button.className = 'button-80';
-clear_button.textContent = "Clear";
-clear_button.addEventListener('click', function() {
-    handleDaySelection(clear_button, "Clear");
-});
-document.getElementById("timeline").appendChild(clear_button);
+function makeTimeline() {
+    //Make the timeline buttons
+    const uniqueDates = [...new Set(photo_data.map(photo => new Date(photo.datetime).setHours(0,0,0)))];
+    uniqueDates.slice(0, uniqueDates.length)
+    uniqueDates.sort((dateA, dateB) => dateA - dateB);
+
+    function handleDaySelection(clickedButton, selectedDate) { 
+        if (selectedDate == "Clear") {
+            selectedDate = uniqueDates[0];
+            selectedDateEnd = uniqueDates[uniqueDates.length -1];
+        }
+        else {
+            selectedDateEnd = new Date(selectedDate);
+            selectedDateEnd.setDate(selectedDate.getDate() + 1);
+        }
+        map.removeLayer(markerLayer)
+        markerLayer = createMarkerLayer(selectedDate, selectedDateEnd); 
+        map.addLayer(markerLayer);
+        map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 12.5, duration:500, padding: [10,10,10,10]})
+
+    }
+
+    uniqueDates.forEach((date, index) => {
+        const button = document.createElement('button');
+        date = new Date(date);
+        button.className = 'button-80';
+        button.textContent = `Day ${index + 1}`;    
+        button.addEventListener('click', function() {handleDaySelection(button, date)});
+        document.getElementById("timeline").appendChild(button);
+    })
+
+    const clear_button = document.createElement('button');
+    clear_button.className = 'button-80';
+    clear_button.textContent = "Clear";
+    clear_button.addEventListener('click', function() {
+        handleDaySelection(clear_button, "Clear");
+    });
+    document.getElementById("timeline").appendChild(clear_button);
+}
