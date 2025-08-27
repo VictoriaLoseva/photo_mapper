@@ -1,27 +1,35 @@
 
 var map; 
 var markerLayer; 
-var photo_data; 
+
 
 directoryInput = document.getElementById("directoryInput");
 
 
 
 directoryInput.addEventListener('change', async function(event) {
+    if(map instanceof ol.Map) {map.removeLayer(markerLayer)}
     photo_data = await processFiles(event.target.files);
-    // console.log("photo_data: ", console.log(JSON.stringify(photo_data)));
-    // console.log(typeof(photo_data));
-    // console.log("photo_data[0]", photo_data.at(0));
     photo_data.sort((photoA, photoB) => photoA.datetime - photoB.datetime);
-    // console.log("photo_data sorted: ", photo_data);
-    markerLayer = createMarkerLayer(photo_data[0].datetime, photo_data[photo_data.length - 1].datetime);
-    console.log("made", markerLayer.getSource().getFeatures().length, "markers");
-    markerLayer.getSource().getFeatures().forEach(f => console.log(f.getGeometry()));
-    console.log("markerlayer: ", markerLayer)
-    map = createMap();
-    makeTimeline();
-    // markerLayer.getSource().getFeatures().forEach(f => {console.log(f)});
-    console.log(markerLayer);
+
+    if(map instanceof ol.Map) {
+        console.log("not first map")
+        markerLayer = createMarkerLayer(photo_data[0].datetime, photo_data[photo_data.length - 1].datetime);
+        map.addLayer(markerLayer);
+        map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 10, duration:1000});
+        document.getElementById("timeline").innerHTML = ""
+        makeTimeline();
+
+    }
+    else {
+        console.log("first map")
+        markerLayer = createMarkerLayer(photo_data[0].datetime, photo_data[photo_data.length - 1].datetime);
+        console.log("made", markerLayer.getSource().getFeatures().length, "markers");
+        map = createMap();
+        makeTimeline();
+       
+    }
+   
 })
 
 
@@ -36,7 +44,7 @@ function createMap() {
     markerLayer = createMarkerLayer(photo_data[0].datetime, photo_data[photo_data.length - 1].datetime);
 
     //Create the popup element
-    const photo_popup_inner = document.createElement('div');
+    photo_popup_inner = document.createElement('div');
     photo_popup_inner.id = 'photo_popup_inner';
     const popup_overlay = new ol.Overlay({
         element: photo_popup_inner,
@@ -75,6 +83,7 @@ function createMap() {
                 `;
             photo_popup_inner.style.display = 'block';
             popup_overlay.setPosition(event.coordinate);
+            console.log(feature.get('path'));
         }
         else {
             photo_popup_inner.style.display = 'None'
@@ -132,6 +141,8 @@ function getDataPromise(file) {
 
 async function processFiles(files) {
     if (files.length === 0) return;
+    
+    document.getElementById("directoryInfo").innerText = ""
 
     
     // Filter for image files
@@ -147,16 +158,26 @@ async function processFiles(files) {
     // Update directory info
     directoryInfo.textContent = `Found ${imageFiles.length} images in selected directory.`;
 
+    // progressBar = document.getElementById("progressBar"); 
+    // document.getElementById("directorySelectionContainer").appendChild(progressBar);
+    // progressBar.className = "progressBar";
+
 
     photosFromFile = new Array();
-    
+    console.log(imageFiles.length);
+
+    let i = 0;
     // Process each image file
     for (const imFile of imageFiles) {
         // console.log("processing ", JSON.stringify(imFile.webkitRelativePath))
 
-        await getDataPromise(imFile) 
+        await getDataPromise(imFile) ;
 
-        console.log("yeet")
+        document.getElementById("directoryInputLabelProgress").style.width = (i+1)/imageFiles.length*100 + '%';
+        directoryInfo.textContent = `Found ${imageFiles.length} images in selected directory.\n 
+                                     Processed ${i} images.`;
+        i++;
+
 
         const latitude = EXIF.getTag(imFile, "GPSLatitude");
         const longitude = EXIF.getTag(imFile, "GPSLongitude");
@@ -170,7 +191,7 @@ async function processFiles(files) {
             const decimalLongitude = convertDMSToDecimal(longitude, longitudeRef);
             // console.log(decimalLatitude, decimalLongitude);
             image = {coords: [decimalLatitude, decimalLongitude], 
-                        path: imFile.webkitRelativePath,
+                        path: URL.createObjectURL(imFile),
                         datetime: new Date(dateEXIF.split(' ')[0].replace(/:/g, '-') + 'T' + dateEXIF.split(' ')[1]) , 
                         width: EXIF.getTag(imFile, "ImageWidth"), 
                         length: EXIF.getTag(imFile, "ImageHeight")};
@@ -183,7 +204,7 @@ async function processFiles(files) {
         console.log("No photos with GPS data found");
     }
     else {
-        directoryInfo.textContent += `Found ${photosFromFile.length} GPS-tagged images in selected directory.`;
+        directoryInfo.textContent = `Found ${photosFromFile.length} GPS-tagged images in selected directory.`;
     }
 
     console.log("All files processed:", photosFromFile);
@@ -237,7 +258,7 @@ function makeTimeline() {
         map.removeLayer(markerLayer)
         markerLayer = createMarkerLayer(selectedDate, selectedDateEnd); 
         map.addLayer(markerLayer);
-        map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 12.5, duration:500, padding: [10,10,10,10]})
+        map.getView().fit(markerLayer.getSource().getExtent(), {maxZoom: 12.5, duration:500, padding: [50,50,50,50]})
 
     }
 
@@ -257,4 +278,5 @@ function makeTimeline() {
         handleDaySelection(clear_button, "Clear");
     });
     document.getElementById("timeline").appendChild(clear_button);
+    document.getElementById("timelineContainer").style.display = "block";
 }

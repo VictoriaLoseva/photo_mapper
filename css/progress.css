@@ -1,13 +1,13 @@
-#progressbar {
+#progressBar {
   background-color: black;
   border-radius: 13px;
   /* (height of inner div) / 2 + padding */
   padding: 3px;
 }
 
-#progressbar>div {
+#progressBarInner {
   background-color: orange;
-  width: 100%;
+  width: 0%;
   /* Adjust with JavaScript */
   height: 20px;
   border-radius: 10px;

@@ -5,10 +5,19 @@
     <link rel="stylesheet" href="./css/button.css">
     <link rel="stylesheet" href="./css/progress.css">
     <style>
+        body {
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            font-family: "Times New Roman", Times, serif;
+        }
         #map { 
             width: 70%; 
             height: 600px; 
-            margin: auto}
+            margin: auto;
+            margin-top: 20px;
+
+        }
         #photo_popup_inner {
             padding: 10px; 
             border: 1px solid #ccc; 
@@ -18,14 +27,68 @@
             border-radius: 5px;
             background: #fefefe;
         }
+        .timeline-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width:fit-content;
+            text-align: center;
+            margin: auto;
+            margin-top: 20px;
+            display:block;
+            padding: 20px;
+
+        }
+
         #timeline {
             width: 70%;
-            margin: auto;
             display: grid;
             grid-template-rows: 0.3f 0.3fr;
             grid-template-columns: repeat(7, minmax(100px, 1fr));
             gap: 10px;
-            margin-bottom: 30px
+        }
+        .directory-input-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 40%;
+            margin: auto;
+            position:relative;
+        }
+
+        .directory-input-label {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            background: transparent;
+            backface-visibility: hidden;
+            border-radius: .375rem;
+            border-style: solid;
+            border-width: .125rem;
+            box-sizing: border-box;
+            color: #212121;
+            padding: 12px 24px;
+            position: relative;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 10px;
+            /* transition: all 0.3s ease; */
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .directory-input-label-progress {
+            background: rgba(0,100,0,0.5); 
+            width: 0%; 
+            position: absolute;
+            top: 0; 
+            left: 0;  
+            height: 100%; 
+            transition: width 0.5s ease-in-out;
+            z-index: -1;
 
         }
 
@@ -33,13 +96,22 @@
 </head>
 <body>
     <div id="container">
-        <div id="directorySelectionContainer">
-            <div><input type="file" id="directoryInput" webkitdirectory></div>
+        <div id="directorySelectionContainer" class="directory-input-container">
+            <input type="file" id="directoryInput"  style="display:none;" webkitdirectory multiple>
+            <label class="directory-input-label" for="directoryInput">
+                <div id="directoryInputLabelProgress" class="directory-input-label-progress"></div>
+                Select a directory
+                
+            </label>
+            
+
             <div id="directoryInfo"></div>
-            <div id="progressbar"></div>
+            <!-- <div id="progressBar"><div id="progressBarInner"></div></div> -->
         </div>
         
-        <div id="timeline"></div>
+        <div id="timelineContainer" class="timeline-container"> 
+            <div id="timeline"></div> 
+        </div> 
         <div id="map"></div>
         <div id="picture"></div>
     </div>
