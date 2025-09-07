@@ -9,8 +9,8 @@ To use, clone the repo and simply open index.html in your browser. Then select a
 All file handling is done entirely client-side. Loading in the map tiles is the only use of internet connectivity in this project. 
 
 The webpage has been tested on MacOs Firefox and Chrome. 
-
-
+ 
+Big thank you to the authors of the [EXIF parsing library](https://github.com/exif-js/exif-js), whose code I used in this project. 
 
 ## Next steps: 
 - Load in the map while the files are being processed for a smoother user experience 
